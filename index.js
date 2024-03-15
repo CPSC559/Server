@@ -9,11 +9,14 @@ const serializationUtils = require("./serializationUtils");
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
+const axios = require("axios");
 
 //Variable to store socket ID mappings
 const publicKeyToSocketIdMap = {};
 
 const app = express();
+
+const otherServers = ["http://localhost:4001", "http://localhost:4002"];
 
 //Remove cors
 app.use(cors());
@@ -122,6 +125,22 @@ app.post("/message", async (req, res) => {
       ChatroomID: req.body.currChatroom,
     });
 
+    otherServers.forEach((server) => {
+      axios
+        .post(`${server}/message`, {
+          cipher: serializedEncryptedMessage,
+          recipients: serializedRecipients,
+          senderBase64PublicKey: req.body.senderBase64PublicKey,
+          currChatroom: req.body.currChatroom,
+        })
+        .then((response) => {
+          console.log(`Sent message to server ${server} successfully.`);
+        })
+        .catch((error) => {
+          console.error(`Failed to send message to server: ${server}`, error);
+        });
+    });
+
     const recipients =
       serializationUtils.deserializeUint8ArrayObject(serializedRecipients);
 
@@ -159,6 +178,21 @@ app.post("/chatroom", async (req, res) => {
       Password: req.body.password,
       UserPubKeys: [req.body.userPubKey],
     });
+
+    otherServers.forEach((server) => {
+      axios
+        .post(`${server}/chatroom`, {
+          password: req.body.password,
+          userPubKey: req.body.userPubKey,
+        })
+        .then((response) => {
+          console.log(`Sent chatroom to server ${server} successfully.`);
+        })
+        .catch((error) => {
+          console.error(`Failed to send chatroom to server ${server}:`, error);
+        });
+    });
+
     res.status(200).json(chatroom);
   } catch (error) {
     res.status(400).json({ error: error.message });
