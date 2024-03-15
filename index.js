@@ -125,21 +125,24 @@ app.post("/message", async (req, res) => {
       ChatroomID: req.body.currChatroom,
     });
 
-    otherServers.forEach((server) => {
-      axios
-        .post(`${server}/message`, {
-          cipher: serializedEncryptedMessage,
-          recipients: serializedRecipients,
-          senderBase64PublicKey: req.body.senderBase64PublicKey,
-          currChatroom: req.body.currChatroom,
-        })
-        .then((response) => {
-          console.log(`Sent message to server ${server} successfully.`);
-        })
-        .catch((error) => {
-          console.error(`Failed to send message to server: ${server}`, error);
-        });
-    });
+    //If the message came from the client, lets forward the message to each other server
+    if (req.body?.fromClient) {
+      otherServers.forEach((server) => {
+        axios
+          .post(`${server}/message`, {
+            cipher: serializedEncryptedMessage,
+            recipients: serializedRecipients,
+            senderBase64PublicKey: req.body.senderBase64PublicKey,
+            currChatroom: req.body.currChatroom,
+          })
+          .then((response) => {
+            console.log(`Sent message to server ${server} successfully.`);
+          })
+          .catch((error) => {
+            console.error(`Failed to send message to server: ${server}`, error);
+          });
+      });
+    }
 
     const recipients =
       serializationUtils.deserializeUint8ArrayObject(serializedRecipients);
@@ -179,19 +182,25 @@ app.post("/chatroom", async (req, res) => {
       UserPubKeys: [req.body.userPubKey],
     });
 
-    otherServers.forEach((server) => {
-      axios
-        .post(`${server}/chatroom`, {
-          password: req.body.password,
-          userPubKey: req.body.userPubKey,
-        })
-        .then((response) => {
-          console.log(`Sent chatroom to server ${server} successfully.`);
-        })
-        .catch((error) => {
-          console.error(`Failed to send chatroom to server ${server}:`, error);
-        });
-    });
+    //If the message came from the client, lets forward the message to each other server
+    if (req.body?.fromClient) {
+      otherServers.forEach((server) => {
+        axios
+          .post(`${server}/chatroom`, {
+            password: req.body.password,
+            userPubKey: req.body.userPubKey,
+          })
+          .then((response) => {
+            console.log(`Sent chatroom to server ${server} successfully.`);
+          })
+          .catch((error) => {
+            console.error(
+              `Failed to send chatroom to server ${server}:`,
+              error
+            );
+          });
+      });
+    }
 
     res.status(200).json(chatroom);
   } catch (error) {
@@ -206,6 +215,25 @@ app.get("/room", async (req, res) => {
   const publicKey = req.query.publicKey;
   const password = req.query.Password;
 
+
+  //If the message came from the client, lets forward the message to each other server
+  if (req.query?.fromClient) {
+    otherServers.forEach((server) => {
+      axios
+        .get(`${server}/room`, {
+          params: {
+            publicKey: req.query.publicKey,
+            Password: req.query.Password,
+          }
+        })
+        .then((response) => {
+          console.log(`Sent message to server ${server} successfully.`);
+        })
+        .catch((error) => {
+          console.error(`Failed to send message to server: ${server}`, error);
+        });
+    });
+  }
   Chatroom.findOne({ Password: password })
     .then((chatroom) => {
       if (!chatroom) {
