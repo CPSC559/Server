@@ -145,6 +145,7 @@ app.post("/message", async (req, res) => {
           .post(`${server}/message`, {
             cipher: serializedEncryptedMessage,
             recipients: serializedRecipients,
+            senderBase64PublicKey: req.body.senderBase64PublicKey,
             currChatroom: req.body.currChatroom,
           })
           .then((response) => {
@@ -168,7 +169,6 @@ app.post("/message", async (req, res) => {
         io.to(recipientSocketId).emit("new_message", {
           serializedEncryptedMessage,
           serializedEncryptedSymmetricKey,
-          senderBase64PublicKey,
           clientColor: clientColor,
         });
       } else {
