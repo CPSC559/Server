@@ -117,11 +117,12 @@ app.post("/message", async (req, res) => {
   try {
     const serializedEncryptedMessage = req.body.cipher;
     const serializedRecipients = req.body.recipients;
+    const senderBase64PublicKey = req.body.senderBase64PublicKey;
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
       // sender should be inferred through socket, what happens if sender pretends to be someone else?
-      Sender: req.body.senderBase64PublicKey,
+      Sender: senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
     });
 
@@ -156,6 +157,7 @@ app.post("/message", async (req, res) => {
         io.to(recipientSocketId).emit("new_message", {
           serializedEncryptedMessage,
           serializedEncryptedSymmetricKey,
+          senderBase64PublicKey,
         });
       } else {
         console.log(publicKeyToSocketIdMap);
