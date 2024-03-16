@@ -30,6 +30,11 @@ const io = socketIo(server, {
 io.on("connection", (socket) => {
   console.log("Client connected");
 
+  socket.on("ping", () => {
+    console.log("Received ping from client. Sending pong...");
+    socket.emit("pong");
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
   });
