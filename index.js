@@ -40,7 +40,6 @@ io.on("connection", (socket) => {
   socket.on("register_public_key", (info) => {
     console.log(info.publicKey);
     publicKeyToSocketIdMap[info.publicKey] = socket.id;
-
     Chatroom.findOne({ Password: info.chatroom }).then((result) => {
       if (result) {
         result.UserPubKeys.forEach((key) => {
@@ -130,13 +129,12 @@ app.post("/message", async (req, res) => {
   try {
     const serializedEncryptedMessage = req.body.cipher;
     const serializedRecipients = req.body.recipients;
-    const senderBase64PublicKey = req.body.senderBase64PublicKey;
     const clientColor = generateColor(senderBase64PublicKey);
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
       // sender should be inferred through socket, what happens if sender pretends to be someone else?
-      Sender: senderBase64PublicKey,
+      Sender: req.body.senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
     });
 
@@ -147,7 +145,6 @@ app.post("/message", async (req, res) => {
           .post(`${server}/message`, {
             cipher: serializedEncryptedMessage,
             recipients: serializedRecipients,
-            senderBase64PublicKey: req.body.senderBase64PublicKey,
             currChatroom: req.body.currChatroom,
           })
           .then((response) => {
