@@ -14,6 +14,9 @@ const axios = require("axios");
 //Variable to store socket ID mappings
 const publicKeyToSocketIdMap = {};
 
+// chatroom message index counter
+const chatroomIndices = {};
+
 const app = express();
 
 const otherServers = ["http://localhost:4001", "http://localhost:4002"];
@@ -134,13 +137,15 @@ app.post("/message", async (req, res) => {
   try {
     const serializedEncryptedMessage = req.body.cipher;
     const serializedRecipients = req.body.recipients;
+    const senderBase64PublicKey = req.body.senderBase64PublicKey
     const clientColor = generateColor(senderBase64PublicKey);
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
       // sender should be inferred through socket, what happens if sender pretends to be someone else?
-      Sender: req.body.senderBase64PublicKey,
+      Sender: senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
+      MessageIndex: chatroomIndices[req.body.currChatroom]
     });
 
     //If the message came from the client, lets forward the message to each other server
@@ -175,6 +180,7 @@ app.post("/message", async (req, res) => {
           serializedEncryptedMessage,
           serializedEncryptedSymmetricKey,
           clientColor: clientColor,
+          messageIndex: chatroomIndices[req.body.currChatroom]
         });
       } else {
         console.log(publicKeyToSocketIdMap);
@@ -182,6 +188,8 @@ app.post("/message", async (req, res) => {
       }
     });
     console.log("Made message");
+
+    chatroomIndices[req.body.currChatroom] += 1;
 
     //loop across the recipients and broadcast the message to each of them with the appropriate symmetric key
     res.status(200).json(message);
@@ -220,6 +228,8 @@ app.post("/chatroom", async (req, res) => {
           });
       });
     }
+
+    chatroomIndices[req.body.password] = 0;
 
     res.status(200).json(chatroom);
   } catch (error) {
