@@ -14,10 +14,15 @@ const axios = require("axios");
 //Variable to store socket ID mappings
 const publicKeyToSocketIdMap = {};
 
+
+
 // chatroom message index counter
 const chatroomIndices = {};
 
 const app = express();
+const id =4000;
+const otherIds = [4001,4002]
+var leader=0;
 
 const otherServers = ["http://localhost:4001", "http://localhost:4002"];
 
@@ -26,6 +31,25 @@ app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
+const response = axios.post(`${otherServers[0]}/election`, {
+    id: id
+}).then(response => {
+  console.log(response);
+})
+.catch((error) => {
+console.error(`Failed to send message to server: ${server}`, error);
+leader = id;
+});
+const response2 = axios.post(`${otherServers[1]}/election`, {
+  id: id
+}).then(response => {
+console.log(response);
+leader=0;
+})
+.catch((error) => {
+console.error(`Failed to send message to server: ${server}`, error);
+leader = id;
+});
 const io = socketIo(server, {
   cors: {
     origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
@@ -34,8 +58,31 @@ const io = socketIo(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("Client connected");
 
+  console.log("Client connected");
+  if(leader!=id){
+    const response = axios.post(`${otherServers[0]}/election`, {
+        id: id
+    }).then(response => {
+      console.log(response);
+      socket.disconnect();
+  })
+  .catch((error) => {
+    console.error(`Failed to send message to server: ${server}`, error);
+    leader = id;
+  });
+  const response2 = axios.post(`${otherServers[1]}/election`, {
+      id: id
+  }).then(response => {
+    console.log(response);
+    leader=0;
+    socket.disconnect();
+})
+.catch((error) => {
+  console.error(`Failed to send message to server: ${server}`, error);
+  leader = id;
+});
+}
   socket.on("ping", () => {
     console.log("Received ping from client. Sending pong...");
     socket.emit("pong");
@@ -94,6 +141,25 @@ const generateColor = (publicKey) => {
 
   return `hsl(${hue}, 70%, 86%)`;
 };
+app.post("/election",  async (req, res) => {
+  mid = req.body.id 
+  if (mid<id)
+  {
+   res.send("Ok")
+  }
+  else{
+    console.log(mid)
+    io.disconnectSockets();
+  }
+});
+
+app.post("/leader",  async (req, res) => {
+  lead = req.body.leader 
+  leader= lead;
+  io.disconnectSockets();
+});
+
+
 
 //Example for how to call the following endpoint http://localhost:4000/chatrooms
 //Endpoint can be used to get all chatrooms
