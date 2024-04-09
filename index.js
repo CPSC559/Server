@@ -6,8 +6,6 @@ const http = require("http");
 const socketIo = require("socket.io");
 const chatroomCleanup = require("./chatroomCleanup");
 const serializationUtils = require("./serializationUtils");
-const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-names-generator');
-
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const axios = require("axios");
