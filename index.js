@@ -6,15 +6,19 @@ const http = require("http");
 const socketIo = require("socket.io");
 const chatroomCleanup = require("./chatroomCleanup");
 const serializationUtils = require("./serializationUtils");
-
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const axios = require("axios");
+const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-names-generator');
 
 //Variable to store socket ID mappings
 const publicKeyToSocketIdMap = {};
 
 
+let generate;
+import('random-words').then((module) => {
+    generate = module.default;
+}).catch(err => console.error('Failed to load the random-words module', err));
 
 // chatroom message index counter
 const chatroomIndices = {};
@@ -52,7 +56,7 @@ leader = id;
 });
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
+    origin: ["http://localhost:3000", "http://localhost:3006", "http://localhost:3001"], // Allow only the React client to connect
     methods: ["GET", "POST"], // Allow only these methods in CORS requests
   },
 });
@@ -141,6 +145,32 @@ const generateColor = (publicKey) => {
 
   return `hsl(${hue}, 70%, 86%)`;
 };
+
+function generateIndexFromHash(hash, dictionarySize) {
+  // Taking a slice of the hash to get a smaller number and converting it to an integer
+  if(hash < 0) {
+    hash = hash * -1;
+  }
+  // Using modulo to ensure the index fits within the dictionary size
+  return hash % dictionarySize;
+}
+
+const generateUserName = (publicKey) => {
+  const hashCode = publicKey.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  const adjectiveIndex = generateIndexFromHash(hashCode, adjectives.length);
+  const animalIndex = generateIndexFromHash(hashCode, animals.length);
+
+  const adjective = adjectives[adjectiveIndex];
+  const animal = animals[animalIndex];
+
+  // Combine and format the words to form the username
+  return `${adjective.charAt(0).toUpperCase() + adjective.slice(1)}${animal.charAt(0).toUpperCase() + animal.slice(1)}`;
+}
+
+
 app.post("/election",  async (req, res) => {
   mid = req.body.id 
   if (mid<id)
@@ -205,6 +235,7 @@ app.post("/message", async (req, res) => {
     const serializedRecipients = req.body.recipients;
     const senderBase64PublicKey = req.body.senderBase64PublicKey
     const clientColor = generateColor(senderBase64PublicKey);
+    const userName = generateUserName(senderBase64PublicKey);
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
@@ -246,6 +277,7 @@ app.post("/message", async (req, res) => {
           serializedEncryptedMessage,
           serializedEncryptedSymmetricKey,
           clientColor: clientColor,
+          userName: userName,
           messageIndex: chatroomIndices[req.body.currChatroom]
         });
       } else {
