@@ -24,10 +24,12 @@ import('random-words').then((module) => {
 const chatroomIndices = {};
 
 const app = express();
+//Server assigned id for leader election
 const id =4000;
-const otherIds = [4001,4002]
+//Current leader id set to 0 by default
 var leader=0;
-
+//List of other servers to send updates to. Set to local host by default but can be updated to ip addresses to 
+//run on multiple machines
 const otherServers = ["http://localhost:4001", "http://localhost:4002"];
 
 //Remove cors
@@ -35,6 +37,8 @@ app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
+//Upon startup and being added to the pool of servers server 1 will check if its larger servers are online if not it will take over
+//as leader
 const response = axios.post(`${otherServers[0]}/election`, {
     id: id
 }).then(response => {
@@ -54,6 +58,7 @@ leader=0;
 console.error(`Failed to send message to server: ${server}`, error);
 leader = id;
 });
+//Socket set as leader for failures 
 const io = socketIo(server, {
   cors: {
     origin: ["http://localhost:3000", "http://localhost:3006", "http://localhost:3001"], // Allow only the React client to connect
@@ -64,7 +69,9 @@ const io = socketIo(server, {
 io.on("connection", (socket) => {
 
   console.log("Client connected");
+  
   if(leader!=id){
+    //If a socket connects and the server is not set as the current leader both servers must be checked to become leader and accept the connection
     const response = axios.post(`${otherServers[0]}/election`, {
         id: id
     }).then(response => {
@@ -87,6 +94,8 @@ io.on("connection", (socket) => {
   leader = id;
 });
 }
+  //Ping the client connection when this times out on client side it will switch to a different server
+  //assuming failure
   socket.on("ping", () => {
     console.log("Received ping from client. Sending pong...");
     socket.emit("pong");
@@ -95,9 +104,11 @@ io.on("connection", (socket) => {
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
   });
-
+//Register public key is a way for the client to send a newly registered socket connection to all other clients for the purpose of encryption
   socket.on("register_public_key", (info) => {
     console.log(info.publicKey);
+    //The public key information will be registered to the servers local list and then the server will query the database and emit the newly added
+    //public key to all other clients currently in the chatroom this is done so that they can generate their encrypted messages with the new user in mind
     publicKeyToSocketIdMap[info.publicKey] = socket.id;
     Chatroom.findOne({ Password: info.chatroom }).then((result) => {
       if (result) {
@@ -119,19 +130,21 @@ io.on("connection", (socket) => {
       }
     });
   });
-
+ //On socket error console log error message
   socket.on("error", (error) => {
     console.error(`Connection error: ${error}`);
   });
 });
-
+//Uri is used to connect to server one database in mongodb 
 const uri =
   "mongodb+srv://AppUser:qvRGUENrpuplSpeT@cpsc559project.uhkbb5v.mongodb.net/CPSC559Project?retryWrites=true&w=majority";
 
 mongoose.connect(uri).then((result) => console.log("connected to db"));
+//Connect to the mongodb instance then start listening on port 4001
 const port = process.env.PORT || 4000;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
+//Call chatroom cleanup message to remove any unneeded chatrooms
 chatroomCleanup();
 
 const generateColor = (publicKey) => {
@@ -154,7 +167,9 @@ function generateIndexFromHash(hash, dictionarySize) {
   // Using modulo to ensure the index fits within the dictionary size
   return hash % dictionarySize;
 }
-
+//GenerateUserName function is used to create a unique anonymous username 
+//from the users defined public key (Note this is not an entirely unique name that is generated
+//and has something like a 1 in 42000 chance to match but that is very unlikely so has been left with those odds for this project)
 const generateUserName = (publicKey) => {
   const hashCode = publicKey.split("").reduce((a, b) => {
     a = (a << 5) - a + b.charCodeAt(0);
