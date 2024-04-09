@@ -4,6 +4,6 @@ COPY package*.json ./
 CMD [ "npm", "install" ]
 COPY . .
 
-EXPOSE 4001
+EXPOSE 4000
 
 CMD [ "node", "index.js" ]

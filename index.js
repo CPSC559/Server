@@ -24,8 +24,8 @@ import('random-words').then((module) => {
 const chatroomIndices = {};
 
 const app = express();
-const id =4001;
-const otherIds = [4000,4002]
+const id =4000;
+const otherIds = [4001,4002]
 var leader=0;
 
 const otherServers = ["http://localhost:4000", "http://localhost:4002"];
@@ -129,7 +129,7 @@ const uri =
   "mongodb+srv://AppUser:qvRGUENrpuplSpeT@cpsc559project.uhkbb5v.mongodb.net/CPSC559Project?retryWrites=true&w=majority";
 
 mongoose.connect(uri).then((result) => console.log("connected to db"));
-const port = process.env.PORT || 4001;
+const port = process.env.PORT || 4000;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
 chatroomCleanup();
