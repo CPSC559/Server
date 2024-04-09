@@ -28,7 +28,7 @@ const id =4000;
 const otherIds = [4001,4002]
 var leader=0;
 
-const otherServers = ["http://localhost:4000", "http://localhost:4002"];
+const otherServers = ["http://localhost:4001", "http://localhost:4002"];
 
 //Remove cors
 app.use(cors());
