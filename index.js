@@ -11,11 +11,16 @@ const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-na
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const axios = require("axios");
+const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-names-generator');
 
 //Variable to store socket ID mappings
 const publicKeyToSocketIdMap = {};
 
 
+let generate;
+import('random-words').then((module) => {
+    generate = module.default;
+}).catch(err => console.error('Failed to load the random-words module', err));
 
 // chatroom message index counter
 const chatroomIndices = {};
@@ -142,7 +147,6 @@ const generateColor = (publicKey) => {
 
   return `hsl(${hue}, 70%, 86%)`;
 };
-
 
 function generateIndexFromHash(hash, dictionarySize) {
   // Taking a slice of the hash to get a smaller number and converting it to an integer
