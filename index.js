@@ -6,6 +6,7 @@ const http = require("http");
 const socketIo = require("socket.io");
 const chatroomCleanup = require("./chatroomCleanup");
 const serializationUtils = require("./serializationUtils");
+const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-names-generator');
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
@@ -20,11 +21,11 @@ const publicKeyToSocketIdMap = {};
 const chatroomIndices = {};
 
 const app = express();
-const id =4000;
-const otherIds = [4001,4002]
+const id =4001;
+const otherIds = [4000,4002]
 var leader=0;
 
-const otherServers = ["http://localhost:4001", "http://localhost:4002"];
+const otherServers = ["http://localhost:4000", "http://localhost:4002"];
 
 //Remove cors
 app.use(cors());
@@ -52,7 +53,7 @@ leader = id;
 });
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
+    origin: ["http://localhost:3000", "http://localhost:3006", "http://localhost:3001"], // Allow only the React client to connect
     methods: ["GET", "POST"], // Allow only these methods in CORS requests
   },
 });
@@ -125,7 +126,7 @@ const uri =
   "mongodb+srv://AppUser:qvRGUENrpuplSpeT@cpsc559project.uhkbb5v.mongodb.net/CPSC559Project?retryWrites=true&w=majority";
 
 mongoose.connect(uri).then((result) => console.log("connected to db"));
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 4001;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
 chatroomCleanup();
@@ -141,6 +142,32 @@ const generateColor = (publicKey) => {
 
   return `hsl(${hue}, 70%, 86%)`;
 };
+
+
+function generateIndexFromHash(hash, dictionarySize) {
+  // Taking a slice of the hash to get a smaller number and converting it to an integer
+  if(hash < 0) {
+    hash = hash * -1;
+  }
+  // Using modulo to ensure the index fits within the dictionary size
+  return hash % dictionarySize;
+}
+
+const generateUserName = (publicKey) => {
+  const hashCode = publicKey.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  const adjectiveIndex = generateIndexFromHash(hashCode, adjectives.length);
+  const animalIndex = generateIndexFromHash(hashCode, animals.length);
+
+  const adjective = adjectives[adjectiveIndex];
+  const animal = animals[animalIndex];
+
+  // Combine and format the words to form the username
+  return `${adjective.charAt(0).toUpperCase() + adjective.slice(1)}${animal.charAt(0).toUpperCase() + animal.slice(1)}`;
+}
+
 app.post("/election",  async (req, res) => {
   mid = req.body.id 
   if (mid<id)
@@ -205,6 +232,7 @@ app.post("/message", async (req, res) => {
     const serializedRecipients = req.body.recipients;
     const senderBase64PublicKey = req.body.senderBase64PublicKey
     const clientColor = generateColor(senderBase64PublicKey);
+    const userName = generateUserName(senderBase64PublicKey);
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
@@ -246,6 +274,7 @@ app.post("/message", async (req, res) => {
           serializedEncryptedMessage,
           serializedEncryptedSymmetricKey,
           clientColor: clientColor,
+          userName: userName,
           messageIndex: chatroomIndices[req.body.currChatroom]
         });
       } else {
